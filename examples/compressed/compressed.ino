@@ -1,7 +1,7 @@
 #include <ArduinoRF.h>
 
 void setup() {
-  Serial.begin(6900);
+  Serial.begin(9600);
   ArduinoRF::startReceiving(0);
 }
 
