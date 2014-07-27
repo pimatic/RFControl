@@ -46,7 +46,7 @@ void ArduinoRF::continueReceiving()
 }
 
 bool probablyFooter(unsigned int duration) {
-  return duration >= 5000; 
+  return duration >= 4000; 
 }
 
 bool matchesFooter(unsigned int duration)
@@ -55,10 +55,11 @@ bool matchesFooter(unsigned int duration)
   return (footer_length - footer_delta < duration && duration < footer_length + footer_delta);
 }
 
-void startRecording()
+void startRecording(unsigned int duration)
 {
-  state = ARDUINORF_STATUS_RECORDING;
+  footer_length = duration;
   recording_pos = 0;
+  state = ARDUINORF_STATUS_RECORDING;
 }
 
 void startVerify()
@@ -80,8 +81,7 @@ void handleInterrupt()
     case ARDUINORF_STATUS_WAITING:
       if(probablyFooter(duration)) 
       {
-        footer_length = duration;
-        startRecording();
+        startRecording(duration);
       }
       break;
     case ARDUINORF_STATUS_RECORDING:
@@ -89,15 +89,14 @@ void handleInterrupt()
         if(matchesFooter(duration)) 
         {
           //If we have at least recorded 10 values:  
-          if(recording_pos > 10) {
+          if(recording_pos >= 8) {
             startVerify();
           }
         } else {
           if(duration > ARDUINORF_MIN_PULSE_LENGTH) 
           {
             if(duration > footer_length) {
-              footer_length = duration;
-              startRecording();
+              startRecording(duration);
             } else if(recording_pos < ARDUINORF_MAX_RECORDINGS-1) {
               timings[recording_pos] = duration;
               recording_pos++; 
@@ -116,16 +115,16 @@ void handleInterrupt()
         unsigned int delta = refVal/2;
         if(refVal - delta < duration && duration < refVal + delta) 
         {
+          //for some better accurace:
           verify_pos++; 
-          if(verify_pos >= 10) {
+          if(verify_pos == recording_size) {
             timings[recording_pos] = footer_length;
             recording_size++;
             state = ARDUINORF_STATUS_DATA_READY;
           }
         } else {
           if(probablyFooter(duration)) {
-            footer_length = duration;
-            startRecording();
+            startRecording(duration);
           } else {
             state = ARDUINORF_STATUS_WAITING;
           }     
