@@ -45,10 +45,28 @@ void ArduinoRF::continueReceiving()
   state = ARDUINORF_STATUS_WAITING;
 }
 
-bool isFooter(unsigned int duration) {
-  return duration >= 4000; 
+bool probablyFooter(unsigned int duration) {
+  return duration >= 5000; 
 }
 
+bool matchesFooter(unsigned int duration)
+{
+  unsigned int footer_delta = footer_length/4;
+  return (footer_length - footer_delta < duration && duration < footer_length + footer_delta);
+}
+
+void startRecording()
+{
+  state = ARDUINORF_STATUS_RECORDING;
+  recording_pos = 0;
+}
+
+void startVerify()
+{
+  state = ARDUINORF_STATUS_VERIFY;
+  recording_size = recording_pos;
+  verify_pos = 0;
+}
 
 void handleInterrupt()
 {
@@ -60,56 +78,61 @@ void handleInterrupt()
   
   switch(state) {
     case ARDUINORF_STATUS_WAITING:
-     if(isFooter(duration)) {
-         state = ARDUINORF_STATUS_RECORDING;
-         footer_length = duration;
-         recording_pos = 0;
-     }
-     break;
+      if(probablyFooter(duration)) 
+      {
+        footer_length = duration;
+        startRecording();
+      }
+      break;
     case ARDUINORF_STATUS_RECORDING:
-     if(isFooter(duration)) {
-       //If we have at least recorded 10 values:  
-       if(recording_pos > 10) {
-           state = ARDUINORF_STATUS_VERIFY;
-           recording_size = recording_pos;
-           verify_pos = 0;
-       }
-     } else {
-       if(duration > ARDUINORF_MIN_PULSE_LENGTH) {
-         if(recording_pos < ARDUINORF_MAX_RECORDINGS-1) {
-           timings[recording_pos] = duration;
-           recording_pos++; 
-         } else {
-           state = ARDUINORF_STATUS_WAITING;
-         }
-       } else {
-         state = ARDUINORF_STATUS_WAITING;
-       }
-     }
-     break;
-    case ARDUINORF_STATUS_VERIFY:
-     boolean footer = isFooter(duration);
-     if(footer || verify_pos > recording_size) {
-       if(verify_pos == recording_size) {
-         timings[recording_pos] = footer_length;
-         recording_size++;
-         state = ARDUINORF_STATUS_DATA_READY;
-       } else {
-         state = (footer ? ARDUINORF_STATUS_RECORDING : ARDUINORF_STATUS_WAITING);       
-       }
-     } else {
-       unsigned int refVal = timings[verify_pos];
-       unsigned int delta = refVal/16 + refVal/8;
-       if(refVal - delta < duration && duration < refVal + delta) {
-          //for some better accurace:
-          timings[verify_pos] = (timings[verify_pos] + duration) / 2;
-          verify_pos++; 
+      {
+        if(matchesFooter(duration)) 
+        {
+          //If we have at least recorded 10 values:  
+          if(recording_pos > 10) {
+            startVerify();
+          }
         } else {
-          state = ARDUINORF_STATUS_WAITING;
+          if(duration > ARDUINORF_MIN_PULSE_LENGTH) 
+          {
+            if(duration > footer_length) {
+              footer_length = duration;
+              startRecording();
+            } else if(recording_pos < ARDUINORF_MAX_RECORDINGS-1) {
+              timings[recording_pos] = duration;
+              recording_pos++; 
+            } else {
+              state = ARDUINORF_STATUS_WAITING;
+            }
+          } else {
+            state = ARDUINORF_STATUS_WAITING;
+          }
         }
-     }
-     break;
-  }
+      }
+      break;
+    case ARDUINORF_STATUS_VERIFY:
+      {
+        unsigned int refVal = timings[verify_pos];
+        unsigned int delta = refVal/2;
+        if(refVal - delta < duration && duration < refVal + delta) 
+        {
+          verify_pos++; 
+          if(verify_pos >= 10) {
+            timings[recording_pos] = footer_length;
+            recording_size++;
+            state = ARDUINORF_STATUS_DATA_READY;
+          }
+        } else {
+          if(probablyFooter(duration)) {
+            footer_length = duration;
+            startRecording();
+          } else {
+            state = ARDUINORF_STATUS_WAITING;
+          }     
+        }
+      }
+      break;
+    }
 }
 
 bool ArduinoRF::compressTimings(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size) {
