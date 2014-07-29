@@ -1,12 +1,12 @@
 /*
-  ArduinoRF.h - 
+  RFControl.h - 
 */
 #ifndef ArduinoRf_h
 #define ArduinoRf_h
 
 #include "Arduino.h"
 
-class ArduinoRF
+class RFControl
 {
   public:
     static void startReceiving(int interruptPin);
@@ -15,7 +15,7 @@ class ArduinoRF
     static void continueReceiving();
     static bool compressTimings(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size);
   private:
-    ArduinoRF();
+    RFControl();
 };
 
 #endif

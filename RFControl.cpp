@@ -1,18 +1,18 @@
 #include "Arduino.h"
 #include "ArduinoRF.h"
 
-#define ARDUINORF_MAX_RECORDINGS 255
-#define ARDUINORF_STATUS_WAITING 0
-#define ARDUINORF_STATUS_RECORDING 1
-#define ARDUINORF_STATUS_VERIFY 2
-#define ARDUINORF_STATUS_DATA_READY 3
+#define MAX_RECORDINGS 255
+#define STATUS_WAITING 0
+#define STATUS_RECORDING 1
+#define STATUS_VERIFY 2
+#define STATUS_DATA_READY 3
 
-#define ARDUINORF_MIN_FOOTER_LENGTH 4000
-#define ARDUINORF_MIN_PULSE_LENGTH 100 
+#define MIN_FOOTER_LENGTH 4000
+#define MIN_PULSE_LENGTH 100 
 
 
 unsigned int footer_length;
-unsigned int timings[ARDUINORF_MAX_RECORDINGS];
+unsigned int timings[MAX_RECORDINGS];
 unsigned char state;
 int recording_pos;
 int recording_size;  
@@ -22,7 +22,7 @@ void handleInterrupt();
 void ArduinoRF::startReceiving(int interruptPin)
 {
   footer_length = 0;
-  state = ARDUINORF_STATUS_WAITING;
+  state = STATUS_WAITING;
   recording_pos = 0;
   recording_size = 0;  
   verify_pos = 0;
@@ -31,7 +31,7 @@ void ArduinoRF::startReceiving(int interruptPin)
 
 bool ArduinoRF::hasData() 
 {
-  return state == ARDUINORF_STATUS_DATA_READY;
+  return state == STATUS_DATA_READY;
 }
 
 void ArduinoRF::getRaw(unsigned int **buffer, unsigned int* timings_size)
@@ -42,7 +42,7 @@ void ArduinoRF::getRaw(unsigned int **buffer, unsigned int* timings_size)
 
 void ArduinoRF::continueReceiving()
 {
-  state = ARDUINORF_STATUS_WAITING;
+  state = STATUS_WAITING;
 }
 
 bool probablyFooter(unsigned int duration) {
@@ -59,12 +59,12 @@ void startRecording(unsigned int duration)
 {
   footer_length = duration;
   recording_pos = 0;
-  state = ARDUINORF_STATUS_RECORDING;
+  state = STATUS_RECORDING;
 }
 
 void startVerify()
 {
-  state = ARDUINORF_STATUS_VERIFY;
+  state = STATUS_VERIFY;
   recording_size = recording_pos;
   verify_pos = 0;
 }
@@ -78,13 +78,13 @@ void handleInterrupt()
   lastTime = time;
   
   switch(state) {
-    case ARDUINORF_STATUS_WAITING:
+    case STATUS_WAITING:
       if(probablyFooter(duration)) 
       {
         startRecording(duration);
       }
       break;
-    case ARDUINORF_STATUS_RECORDING:
+    case STATUS_RECORDING:
       {
         if(matchesFooter(duration)) 
         {
@@ -93,23 +93,23 @@ void handleInterrupt()
             startVerify();
           }
         } else {
-          if(duration > ARDUINORF_MIN_PULSE_LENGTH) 
+          if(duration > MIN_PULSE_LENGTH) 
           {
             if(duration > footer_length) {
               startRecording(duration);
-            } else if(recording_pos < ARDUINORF_MAX_RECORDINGS-1) {
+            } else if(recording_pos < MAX_RECORDINGS-1) {
               timings[recording_pos] = duration;
               recording_pos++; 
             } else {
-              state = ARDUINORF_STATUS_WAITING;
+              state = STATUS_WAITING;
             }
           } else {
-            state = ARDUINORF_STATUS_WAITING;
+            state = STATUS_WAITING;
           }
         }
       }
       break;
-    case ARDUINORF_STATUS_VERIFY:
+    case STATUS_VERIFY:
       {
         unsigned int refVal = timings[verify_pos];
         unsigned int delta = refVal/2;
@@ -120,13 +120,13 @@ void handleInterrupt()
           if(verify_pos == recording_size) {
             timings[recording_pos] = footer_length;
             recording_size++;
-            state = ARDUINORF_STATUS_DATA_READY;
+            state = STATUS_DATA_READY;
           }
         } else {
           if(probablyFooter(duration)) {
             startRecording(duration);
           } else {
-            state = ARDUINORF_STATUS_WAITING;
+            state = STATUS_WAITING;
           }     
         }
       }
