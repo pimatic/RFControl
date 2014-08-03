@@ -1,5 +1,5 @@
 #include "Arduino.h"
-#include "ArduinoRF.h"
+#include "RFControl.h"
 
 #define MAX_RECORDINGS 255
 #define STATUS_WAITING 0
@@ -19,7 +19,7 @@ int recording_size;
 int verify_pos;
 void handleInterrupt();
 
-void ArduinoRF::startReceiving(int interruptPin)
+void RFControl::startReceiving(int interruptPin)
 {
   footer_length = 0;
   state = STATUS_WAITING;
@@ -29,18 +29,18 @@ void ArduinoRF::startReceiving(int interruptPin)
   attachInterrupt(interruptPin, handleInterrupt, CHANGE);
 }
 
-bool ArduinoRF::hasData() 
+bool RFControl::hasData() 
 {
   return state == STATUS_DATA_READY;
 }
 
-void ArduinoRF::getRaw(unsigned int **buffer, unsigned int* timings_size)
+void RFControl::getRaw(unsigned int **buffer, unsigned int* timings_size)
 {
   *buffer = timings;
   *timings_size = recording_size;
 }
 
-void ArduinoRF::continueReceiving()
+void RFControl::continueReceiving()
 {
   state = STATUS_WAITING;
 }
@@ -134,14 +134,14 @@ void handleInterrupt()
     }
 }
 
-bool ArduinoRF::compressTimings(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size) {
+bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size) {
   for(int j = 0; j < 8; j++ ) {
     buckets[j] = 0;
   }
   unsigned int sums[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   unsigned int counts[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   //sort timings into buckets, handle max 4 different pulse length
-  for(int i = 0; i < timings_size; i++) 
+  for(unsigned int i = 0; i < timings_size; i++) 
   {
     int j = 0;
     for(; j < 8; j++) {
