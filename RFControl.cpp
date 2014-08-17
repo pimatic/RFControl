@@ -71,11 +71,10 @@ void startVerify()
 
 void handleInterrupt()
 {
-  static unsigned int duration;
   static unsigned long lastTime;
-  long time = micros();
-  duration = time - lastTime;
-  lastTime = time;
+  long currentTime = micros();
+  unsigned int duration = currentTime - lastTime;
+  lastTime = currentTime;
   
   switch(state) {
     case STATUS_WAITING:
