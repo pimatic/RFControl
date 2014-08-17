@@ -46,7 +46,7 @@ void RFControl::continueReceiving()
 }
 
 bool probablyFooter(unsigned int duration) {
-  return duration >= 4000; 
+  return duration >= MIN_FOOTER_LENGTH; 
 }
 
 bool matchesFooter(unsigned int duration)
@@ -115,7 +115,6 @@ void handleInterrupt()
         unsigned int delta = refVal/4 + refVal/8;
         if(refVal - delta < duration && duration < refVal + delta) 
         {
-          //for some better accurace:
           verify_pos++; 
           if(verify_pos == recording_size) {
             timings[recording_pos] = footer_length;
@@ -157,7 +156,7 @@ bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, 
         break;
       } else {
         //check if bucket fits:
-        unsigned int delta = refVal/4 + refVal/8;;
+        unsigned int delta = refVal/4 + refVal/8;
         if(refVal - delta < val && val < refVal + delta) {
           timings[i] = j;
           sums[j] += val;
