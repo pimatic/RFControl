@@ -181,13 +181,13 @@ bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, 
 void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats) {
   pinMode(transmitterPin, OUTPUT);
   for(unsigned int i = 0; i < repeats; i++) {
-    digitalWrite(transmitterPin, HIGH);
-    int state = HIGH;
+    digitalWrite(transmitterPin, LOW);
+    int state = LOW;
     for(unsigned int j = 0; j < timings_size; j++) {
       state = !state;
       digitalWrite(transmitterPin, state);
       delayMicroseconds(timings[j]);
     }
-    digitalWrite(transmitterPin, LOW);
   }
+  digitalWrite(transmitterPin, LOW);
 }
