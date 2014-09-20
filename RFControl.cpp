@@ -56,6 +56,9 @@ bool matchesFooter(unsigned int duration)
 
 void startRecording(unsigned int duration)
 {
+  #ifdef RF_CONTROL_SIMULATE_ARDUINO
+  printf(" => start recoding");
+  #endif
   footer_length = duration;
   recording_pos = 0;
   state = STATUS_RECORDING;
@@ -63,6 +66,9 @@ void startRecording(unsigned int duration)
 
 void startVerify()
 {
+  #ifdef RF_CONTROL_SIMULATE_ARDUINO
+  printf(" => start verify (recording_size=%i)", recording_pos);
+  #endif
   state = STATUS_VERIFY;
   recording_size = recording_pos;
   verify_pos = 0;
@@ -76,7 +82,7 @@ void handleInterrupt()
   lastTime = currentTime;
 
   #ifdef RF_CONTROL_SIMULATE_ARDUINO
-  printf("%s: duration=%i", sate2string[state], duration);
+  printf("%s: recording=%i verify=%i duration=%i", sate2string[state], recording_pos, verify_pos, duration);
   #endif
   
   switch(state) {
@@ -90,9 +96,15 @@ void handleInterrupt()
       {
         if(matchesFooter(duration)) 
         {
-          //If we have at least recorded 10 values:  
-          if(recording_pos >= 8) {
+          timings[recording_pos] = duration;
+          recording_pos++; 
+
+          //If we have at least recorded 32 values:  
+          if(recording_pos >= 32) {
             startVerify();
+          } else {
+            // so seems it was not a footer, just a pulse of the regular recording, 
+            startRecording(duration);
           }
         } else {
           if(duration > MIN_PULSE_LENGTH) 
@@ -119,13 +131,27 @@ void handleInterrupt()
         {
           verify_pos++; 
           if(verify_pos == recording_size) {
-            timings[recording_pos] = footer_length;
-            recording_size++;
             state = STATUS_DATA_READY;
+          } else {
+            // keep recording parallel for the case verification fails.
+            if(recording_pos < MAX_RECORDINGS-1) {
+              timings[recording_pos] = duration;
+              recording_pos++;
+            } else {
+              state = STATUS_WAITING;
+            }
           }
         } else {
           if(probablyFooter(duration)) {
-            startRecording(duration);
+            // verification failed but it could be a footer, try to verify again with the
+            // parallel recorded results
+            if(recording_pos < MAX_RECORDINGS-1) {
+              timings[recording_pos] = duration;
+              recording_pos++; 
+              startVerify();
+            } else {
+              state = STATUS_WAITING;
+            }
           } else {
             state = STATUS_WAITING;
           }     
@@ -145,7 +171,7 @@ bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, 
   }
   unsigned int sums[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   unsigned int counts[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  //sort timings into buckets, handle max 4 different pulse length
+  //sort timings into buckets, handle max 8 different pulse length
   for(unsigned int i = 0; i < timings_size; i++) 
   {
     int j = 0;
