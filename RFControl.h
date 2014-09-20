@@ -4,7 +4,11 @@
 #ifndef ArduinoRf_h
 #define ArduinoRf_h
 
+#ifndef RF_CONTROL_SIMULATE_ARDUINO
 #include "Arduino.h"
+#else
+#include "simulate/simulate.h"
+#endif
 
 class RFControl
 {

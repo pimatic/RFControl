@@ -1,4 +1,3 @@
-#include "Arduino.h"
 #include "RFControl.h"
 
 #define MAX_RECORDINGS 255
@@ -75,6 +74,10 @@ void handleInterrupt()
   long currentTime = micros();
   unsigned int duration = currentTime - lastTime;
   lastTime = currentTime;
+
+  #ifdef RF_CONTROL_SIMULATE_ARDUINO
+  printf("%s: duration=%i", sate2string[state], duration);
+  #endif
   
   switch(state) {
     case STATUS_WAITING:
@@ -130,6 +133,10 @@ void handleInterrupt()
       }
       break;
     }
+    
+    #ifdef RF_CONTROL_SIMULATE_ARDUINO
+    printf("\n");
+    #endif
 }
 
 bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size) {
