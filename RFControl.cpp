@@ -169,7 +169,7 @@ bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, 
   for(int j = 0; j < 8; j++ ) {
     buckets[j] = 0;
   }
-  unsigned int sums[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  unsigned long sums[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   unsigned int counts[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   //sort timings into buckets, handle max 8 different pulse length
   for(unsigned int i = 0; i < timings_size; i++) 
