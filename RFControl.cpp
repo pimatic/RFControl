@@ -137,8 +137,6 @@ void handleInterrupt()
             if(recording_pos < MAX_RECORDINGS-1) {
               timings[recording_pos] = duration;
               recording_pos++;
-            } else {
-              state = STATUS_WAITING;
             }
           }
         } else {
