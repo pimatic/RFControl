@@ -126,7 +126,7 @@ void handleInterrupt()
     case STATUS_VERIFY:
       {
         unsigned int refVal = timings[verify_pos];
-        unsigned int delta = refVal/2;
+        unsigned int delta = refVal/4 + refVal/8;
         if(refVal - delta < duration && duration < refVal + delta) 
         {
           verify_pos++; 
@@ -186,7 +186,7 @@ bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, 
         break;
       } else {
         //check if bucket fits:
-        unsigned int delta = refVal/2;
+        unsigned int delta = refVal/4 + refVal/8;
         if(refVal - delta < val && val < refVal + delta) {
           timings[i] = j;
           sums[j] += val;
