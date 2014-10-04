@@ -16,16 +16,23 @@ unsigned char state;
 int recording_pos;
 int recording_size;  
 int verify_pos;
+int interruptPin;
 void handleInterrupt();
 
-void RFControl::startReceiving(int interruptPin)
+void RFControl::startReceiving(int _interruptPin)
 {
   footer_length = 0;
   state = STATUS_WAITING;
   recording_pos = 0;
   recording_size = 0;  
   verify_pos = 0;
+  interruptPin = _interruptPin;
   attachInterrupt(interruptPin, handleInterrupt, CHANGE);
+}
+
+void RFControl::stopReceiving()
+{
+  detachInterrupt(interruptPin);
 }
 
 bool RFControl::hasData() 

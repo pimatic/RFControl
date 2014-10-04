@@ -14,6 +14,7 @@ class RFControl
 {
   public:
     static void startReceiving(int interruptPin);
+    static void stopReceiving();
     static bool hasData();
     static void getRaw(unsigned int **timings, unsigned int* timings_size);
     static void continueReceiving();
