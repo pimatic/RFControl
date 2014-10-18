@@ -21,6 +21,7 @@ class RFControl
     static void getRaw(unsigned int **timings, unsigned int* timings_size);
     static void continueReceiving();
     static bool compressTimings(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size);
+    static bool compressTimingsAndSortBuckets(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size);
     static void sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats = 3);
   private:
     RFControl();
