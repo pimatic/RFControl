@@ -1,31 +1,45 @@
 #include "RFControl.h"
 
-#define MAX_RECORDINGS 255
+#define MAX_RECORDINGS 512
 #define STATUS_WAITING 0
-#define STATUS_RECORDING 1
-#define STATUS_VERIFY 2
-#define STATUS_DATA_READY 3
+#define STATUS_RECORDING_0 1
+#define STATUS_RECORDING_1 2
+#define STATUS_RECORDING_2 3
+#define STATUS_RECORDING_3 4
+#define STATUS_RECORDING_END 5
 
-#define MIN_FOOTER_LENGTH 4000
+#define MIN_FOOTER_LENGTH 3500
 #define MIN_PULSE_LENGTH 100 
 
 
 unsigned int footer_length;
 unsigned int timings[MAX_RECORDINGS];
 unsigned char state;
-int recording_pos;
-int recording_size;  
-int verify_pos;
 int interruptPin = -1;
+int data_start[5];
+int data_end[5];
+bool Pack0EqualPack1 = false;
+bool Pack0EqualPack2 = false;
+bool Pack0EqualPack3 = false;
+bool Pack1EqualPack2 = false;
+bool Pack1EqualPack3 = false;
+bool data1_ready = false;
+bool data2_ready = false;
 void handleInterrupt();
 
-void RFControl::startReceiving(int _interruptPin)
-{
+void RFControl::startReceiving(int _interruptPin) {
   footer_length = 0;
   state = STATUS_WAITING;
-  recording_pos = 0;
-  recording_size = 0;  
-  verify_pos = 0;
+  data_end[0] = 0;
+  data_end[1] = 0;
+  data_end[2] = 0;
+  data_end[3] = 0;
+  data_start[0] = 0;
+  data_start[1] = 0;
+  data_start[2] = 0;
+  data_start[3] = 0; 
+  data1_ready = false;
+  data2_ready = false;
   if(interruptPin != -1) {
     detachInterrupt(interruptPin);   
   }
@@ -33,147 +47,259 @@ void RFControl::startReceiving(int _interruptPin)
   attachInterrupt(interruptPin, handleInterrupt, CHANGE);
 }
 
-void RFControl::stopReceiving()
-{
+void RFControl::stopReceiving() {
   if(interruptPin != -1) {
     detachInterrupt(interruptPin);   
   }
   interruptPin = -1;
 }
 
-bool RFControl::hasData() 
-{
-  return state == STATUS_DATA_READY;
+bool RFControl::hasData() {
+  return (data1_ready || data2_ready);
 }
 
-void RFControl::getRaw(unsigned int **buffer, unsigned int* timings_size)
-{
+void RFControl::getRaw(unsigned int **buffer, unsigned int* timings_size) {
   *buffer = timings;
-  *timings_size = recording_size;
+  *timings_size = data_end[0];
+  data1_ready = false;
+  data2_ready = false;
 }
 
-void RFControl::continueReceiving()
-{
-  state = STATUS_WAITING;
+void RFControl::continueReceiving() {
+  if(state == STATUS_RECORDING_END)
+  {
+    state = STATUS_WAITING;
+    data1_ready = false;
+    data2_ready = false;
+  }
 }
 
 bool probablyFooter(unsigned int duration) {
   return duration >= MIN_FOOTER_LENGTH; 
 }
 
-bool matchesFooter(unsigned int duration)
-{
+bool matchesFooter(unsigned int duration) {
   unsigned int footer_delta = footer_length/4;
   return (footer_length - footer_delta < duration && duration < footer_length + footer_delta);
 }
 
-void startRecording(unsigned int duration)
-{
+void startRecording(unsigned int duration) {
   #ifdef RF_CONTROL_SIMULATE_ARDUINO
   printf(" => start recoding");
   #endif
   footer_length = duration;
-  recording_pos = 0;
-  state = STATUS_RECORDING;
+  data_end[0] = 0;
+  data_end[1] = 0;
+  data_end[2] = 0;
+  data_end[3] = 0;
+  data_start[0] = 0;
+  data_start[1] = 0;
+  data_start[2] = 0;
+  data_start[3] = 0;
+  Pack0EqualPack3 = true;
+  Pack1EqualPack3 = true;
+  Pack0EqualPack2 = true;
+  Pack1EqualPack2 = true;
+  Pack0EqualPack1 = true;
+  data1_ready = false;
+  data2_ready = false;
+  state = STATUS_RECORDING_0;
 }
 
-void startVerify()
-{
-  #ifdef RF_CONTROL_SIMULATE_ARDUINO
-  printf(" => start verify (recording_size=%i)", recording_pos);
-  #endif
-  state = STATUS_VERIFY;
-  recording_size = recording_pos;
-  verify_pos = 0;
+void recording(int duration, int package) {
+  if (matchesFooter(duration)) //Das timing wird mit +-25% des footers geprüft.
+  {
+    //Paket ist komplett!!!!
+    //Wenn das Timing gleich des footers ist machen wir hier weiter
+    timings[data_end[package]] = duration;
+    data_start[package + 1] = data_end[package] + 1;
+    data_end[package + 1] = data_start[package + 1];
+
+    //Haben wir mehr als 32 timings und der anfang und das ende sind ein footer haben wir wohl ein komplettes Packet erhalten. 
+    //Weniger als 32 -> der gespeicherte footer war wohl keiner.  Alle Werte werden zurückgesetzt.
+    if (data_end[package] - data_start[package] >= 32)
+    {
+      if (state == STATUS_RECORDING_3)
+        state = STATUS_RECORDING_END;
+      else
+      {
+        state = STATUS_RECORDING_0 + package + 1;
+      }
+    }
+    else
+    {
+	data_end[package] = data_start[package];
+      switch (package)
+      {
+        case 0:
+          startRecording(duration); //restart
+          break;
+        case 1:
+          Pack0EqualPack1 = true;
+          break;
+        case 2:
+          Pack0EqualPack2 = true;
+          Pack1EqualPack2 = true;
+          break;
+        case 3:
+          Pack0EqualPack3 = true;
+          Pack1EqualPack3 = true;
+          break;
+      }
+    }
+  }
+  else
+  {
+    //Sollte das timing dem footer nicht entsprechen wird hier weiter gemacht.
+    //Ist das empfangene timing größer als der gespeicherte footer, dann ist er kein footer und wir müssen restarten.
+    if (duration > footer_length)
+    {
+      startRecording(duration);
+    }
+    //Normales verfahren.
+    else if (data_end[package] < MAX_RECORDINGS - 1)
+    {
+      timings[data_end[package]] = duration;
+      data_end[package]++;
+    }
+    //Der speicher ist vollgelaufen, wir haben aber kein gültiges paket empfangen. STOP
+    else
+    {
+      state = STATUS_WAITING;
+    }
+  }
 }
 
-void handleInterrupt()
-{
+void verification1() {
+  int pos = data_end[1] - 1 - data_start[1];
+  if (Pack0EqualPack1 && pos >= 0)
+  {
+    int refVal = timings[pos];
+    int mainVal = timings[data_end[1] - 1];
+    int delta = refVal / 8 + refVal / 4; //+-37,5%
+    if (refVal - delta > mainVal || mainVal > refVal + delta)
+    {
+       //werte passen nicht
+       Pack0EqualPack1 = false;
+    }
+    if (state == STATUS_RECORDING_2 && Pack0EqualPack1 == true)
+    {
+      data1_ready = true;
+      state = STATUS_RECORDING_END;
+    }
+  }
+}
+
+void verification2() {
+  int refVal = timings[data_end[2] - 1];
+  int delta = refVal / 8 + refVal / 4; //+-37,5%
+  int refVal_min = refVal - delta;
+  int refVal_max = refVal + delta;
+  int pos = data_end[2] - 1 - data_start[2];
+
+  if (Pack0EqualPack2 && pos >= 0)
+  {
+    int mainVal = timings[pos];
+    if (refVal_min > mainVal || mainVal > refVal_max)
+    {
+      //werte passen nicht
+      Pack0EqualPack2 = false;
+    }
+    if (state == STATUS_RECORDING_3 && Pack0EqualPack2 == true)
+    {
+      data1_ready = true;
+    }
+  }
+  pos = pos + data_start[1];
+  if (Pack1EqualPack2 && pos >= 0)
+  {
+    int mainVal = timings[pos];
+    if (refVal_min > mainVal || mainVal > refVal_max)
+    {
+      //werte passen nicht
+      Pack1EqualPack2 = false;
+    }
+    if (state == STATUS_RECORDING_3 && Pack1EqualPack2 == true)
+    {
+      data2_ready = true;
+    }
+  }
+}
+
+void verification3() {
+  int refVal = timings[data_end[3] - 1]; //Wert vom 4ten Pack
+  int delta = refVal / 8 + refVal / 4; //+-37,5%
+  int refVal_min = refVal - delta;
+  int refVal_max = refVal + delta;
+  int pos = data_end[3] - 1 - data_start[3];
+
+  if (!Pack0EqualPack2 && Pack0EqualPack3 && pos >= 0)
+  {
+    int mainVal = timings[pos];
+    if (refVal_min > mainVal || mainVal > refVal_max)
+    {
+       //werte passen nicht
+       Pack0EqualPack3 = false;
+    }
+    if (state == STATUS_RECORDING_END && Pack0EqualPack3 == true)
+    {
+      data1_ready = true;
+    }
+  }
+  pos = pos + data_start[1];
+  if (!Pack1EqualPack2 && Pack1EqualPack3 && pos >= 0)
+  {
+    int mainVal = timings[pos];
+    if (refVal_min > mainVal || mainVal > refVal_max)
+    {
+      //werte passen nicht
+      Pack1EqualPack3 = false;
+    }
+    if (state == STATUS_RECORDING_END && Pack1EqualPack3 == true)
+    {
+      data2_ready = true;
+    }
+  }
+}
+
+void handleInterrupt() {
   static unsigned long lastTime;
   long currentTime = micros();
   unsigned int duration = currentTime - lastTime;
-  lastTime = currentTime;
-
+  
   #ifdef RF_CONTROL_SIMULATE_ARDUINO
   printf("%s: recording=%i verify=%i duration=%i", sate2string[state], recording_pos, verify_pos, duration);
   #endif
-  
-  switch(state) {
+  if (duration >= MIN_PULSE_LENGTH)
+  {
+    lastTime = currentTime;
+    switch (state)
+    {
     case STATUS_WAITING:
-      if(probablyFooter(duration)) 
-      {
+      if (probablyFooter(duration))
         startRecording(duration);
-      }
       break;
-    case STATUS_RECORDING:
-      {
-        if(matchesFooter(duration)) 
-        {
-          timings[recording_pos] = duration;
-          recording_pos++; 
-
-          //If we have at least recorded 32 values:  
-          if(recording_pos >= 32) {
-            startVerify();
-          } else {
-            // so seems it was not a footer, just a pulse of the regular recording, 
-            startRecording(duration);
-          }
-        } else {
-          if(duration > MIN_PULSE_LENGTH) 
-          {
-            if(duration > footer_length) {
-              startRecording(duration);
-            } else if(recording_pos < MAX_RECORDINGS-1) {
-              timings[recording_pos] = duration;
-              recording_pos++; 
-            } else {
-              state = STATUS_WAITING;
-            }
-          } else {
-            state = STATUS_WAITING;
-          }
-        }
-      }
+    case STATUS_RECORDING_0:
+      recording(duration, 0);
       break;
-    case STATUS_VERIFY:
-      {
-        unsigned int refVal = timings[verify_pos];
-        unsigned int delta = refVal/4 + refVal/8;
-        if(refVal - delta < duration && duration < refVal + delta) 
-        {
-          verify_pos++; 
-          if(verify_pos == recording_size) {
-            state = STATUS_DATA_READY;
-          } else {
-            // keep recording parallel for the case verification fails.
-            if(recording_pos < MAX_RECORDINGS-1) {
-              timings[recording_pos] = duration;
-              recording_pos++;
-            }
-          }
-        } else {
-          if(probablyFooter(duration)) {
-            // verification failed but it could be a footer, try to verify again with the
-            // parallel recorded results
-            if(recording_pos < MAX_RECORDINGS-1) {
-              timings[recording_pos] = duration;
-              recording_pos++; 
-              startVerify();
-            } else {
-              state = STATUS_WAITING;
-            }
-          } else {
-            state = STATUS_WAITING;
-          }     
-        }
-      }
+    case STATUS_RECORDING_1:
+      recording(duration, 1);
+      verification1();
+      break;
+    case STATUS_RECORDING_2:
+      recording(duration, 2);
+      verification2();
+      break;
+    case STATUS_RECORDING_3:
+      recording(duration, 3);
+      verification3();
       break;
     }
+  }
     
-    #ifdef RF_CONTROL_SIMULATE_ARDUINO
-    printf("\n");
-    #endif
+  #ifdef RF_CONTROL_SIMULATE_ARDUINO
+  printf("\n");
+  #endif
 }
 
 bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size) {
