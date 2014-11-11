@@ -14,6 +14,7 @@
 
 unsigned int footer_length;
 unsigned int timings[MAX_RECORDINGS];
+unsigned long lastTime = 0;
 unsigned char state;
 int interruptPin = -1;
 int data_start[5];
@@ -59,10 +60,17 @@ bool RFControl::hasData() {
 }
 
 void RFControl::getRaw(unsigned int **buffer, unsigned int* timings_size) {
-  *buffer = timings;
-  *timings_size = data_end[0];
-  data1_ready = false;
-  data2_ready = false;
+	if (data1_ready){
+		*buffer = &timings[0];
+		*timings_size = data_end[0] + 1;
+		data1_ready = false;
+	}
+  else if (data2_ready)
+  {
+    *buffer = &timings[data_start[1]];
+    *timings_size = data_end[1] - data_start[1] + 1;
+    data2_ready = false;
+  }
 }
 
 void RFControl::continueReceiving() {
@@ -106,17 +114,44 @@ void startRecording(unsigned int duration) {
   state = STATUS_RECORDING_0;
 }
 
-void recording(int duration, int package) {
-  if (matchesFooter(duration)) //Das timing wird mit +-25% des footers geprüft.
+void recording(unsigned int duration, int package) {
+#ifdef RF_CONTROL_SIMULATE_ARDUINO
+  //nice string builder xD
+  printf("%s:", sate2string[state]);
+  if (data_end[package] < 10)
+    printf(" rec_pos=  %i", data_end[package]);
+  else if (data_end[package] < 100)
+    printf(" rec_pos= %i", data_end[package]);
+  else if (data_end[package] < 1000)
+    printf(" rec_pos=%i", data_end[package]);
+  int pos = data_end[package] - data_start[package];
+  if (pos < 10)
+    printf(" pack_pos=  %i", pos);
+  else if (pos < 100)
+    printf(" pack_pos= %i", pos);
+  else if (pos < 1000)
+    printf(" pack_pos=%i", pos);
+
+  if (duration < 10)
+    printf(" duration=    %i", duration);
+  else if (duration < 100)
+    printf(" duration=   %i", duration);
+  else if (duration < 1000)
+    printf(" duration=  %i", duration);
+  else if (duration < 10000)
+    printf(" duration= %i", duration);
+  else if (duration < 100000)
+    printf(" duration=%i", duration);
+#endif
+  if (matchesFooter(duration)) //test for footer (+-25%).
   {
-    //Paket ist komplett!!!!
-    //Wenn das Timing gleich des footers ist machen wir hier weiter
+    //Package is complete!!!!
     timings[data_end[package]] = duration;
     data_start[package + 1] = data_end[package] + 1;
     data_end[package + 1] = data_start[package + 1];
 
-    //Haben wir mehr als 32 timings und der anfang und das ende sind ein footer haben wir wohl ein komplettes Packet erhalten. 
-    //Weniger als 32 -> der gespeicherte footer war wohl keiner.  Alle Werte werden zurückgesetzt.
+    //Received more than 32 timings and start and end are the same footer then enter next state
+    //less than 32 timings -> restart the package.
     if (data_end[package] - data_start[package] >= 32)
     {
       if (state == STATUS_RECORDING_3)
@@ -128,7 +163,10 @@ void recording(int duration, int package) {
     }
     else
     {
-	data_end[package] = data_start[package];
+      #ifdef RF_CONTROL_SIMULATE_ARDUINO
+        printf(" => restart package");
+      #endif
+	    data_end[package] = data_start[package];
       switch (package)
       {
         case 0:
@@ -150,25 +188,75 @@ void recording(int duration, int package) {
   }
   else
   {
-    //Sollte das timing dem footer nicht entsprechen wird hier weiter gemacht.
-    //Ist das empfangene timing größer als der gespeicherte footer, dann ist er kein footer und wir müssen restarten.
+    //duration isnt a footer? this is the way.
+    //if duration higher than the saved footer then the footer isnt a footer -> restart.
     if (duration > footer_length)
     {
       startRecording(duration);
     }
-    //Normales verfahren.
+    //normal
     else if (data_end[package] < MAX_RECORDINGS - 1)
     {
       timings[data_end[package]] = duration;
       data_end[package]++;
     }
-    //Der speicher ist vollgelaufen, wir haben aber kein gültiges paket empfangen. STOP
+    //buffer reached end. Stop recording.
     else
     {
       state = STATUS_WAITING;
     }
   }
 }
+
+/*
+Dont work at the moment
+
+void verify(bool *verifiystate, bool *datastate, unsigned int refVal_max, unsigned int refVal_min, int pos, int package){
+  if (*verifiystate && pos >= 0)
+  {
+    int mainVal = timings[pos];
+    if (refVal_min > mainVal || mainVal > refVal_max)
+    {
+      //werte passen nicht
+      *verifiystate = false;
+    }
+    #ifdef RF_CONTROL_SIMULATE_ARDUINO
+    printf(" - verify = %s", *verifiystate ? "true" : "false");
+    #endif
+    if (state == (package + 2) && *verifiystate == true)
+    {
+      #ifdef RF_CONTROL_SIMULATE_ARDUINO
+      printf("\nPackage are equal.");
+      #endif
+      *datastate = true;
+    }
+  }
+}
+
+void verification(int package) {
+  int refVal = timings[data_end[package] - 1];
+  int delta = refVal / 8 + refVal / 4; //+-37,5%
+  int refVal_min = refVal - delta;
+  int refVal_max = refVal + delta;
+  int pos = data_end[package] - 1 - data_start[package];
+
+  switch (package)
+  {
+  case 1:
+    verify(&Pack0EqualPack1, &data1_ready, refVal_max, refVal_min, pos, package);
+    break;
+  case 2:
+    verify(&Pack0EqualPack2, &data1_ready, refVal_max, refVal_min, pos, package);
+    verify(&Pack1EqualPack2, &data2_ready, refVal_max, refVal_min, pos, package);
+    break;
+  case 3:
+    if (!Pack0EqualPack2)
+      verify(&Pack0EqualPack3, &data1_ready, refVal_max, refVal_min, pos, package);
+    if (!Pack1EqualPack2)
+      verify(&Pack1EqualPack3, &data2_ready, refVal_max, refVal_min, pos, package);
+    break;
+  }
+}*/
 
 void verification1() {
   int pos = data_end[1] - 1 - data_start[1];
@@ -179,11 +267,17 @@ void verification1() {
     int delta = refVal / 8 + refVal / 4; //+-37,5%
     if (refVal - delta > mainVal || mainVal > refVal + delta)
     {
-       //werte passen nicht
-       Pack0EqualPack1 = false;
+      Pack0EqualPack1 = false;
     }
+
+    #ifdef RF_CONTROL_SIMULATE_ARDUINO
+    printf(" - verify 0-1 = %s", Pack0EqualPack1 ? "true" : "false");
+    #endif
     if (state == STATUS_RECORDING_2 && Pack0EqualPack1 == true)
     {
+      #ifdef RF_CONTROL_SIMULATE_ARDUINO
+      printf("\nPackage 0 and 1 are equal. data1_ready = true.");
+      #endif
       data1_ready = true;
       state = STATUS_RECORDING_END;
     }
@@ -202,32 +296,42 @@ void verification2() {
     int mainVal = timings[pos];
     if (refVal_min > mainVal || mainVal > refVal_max)
     {
-      //werte passen nicht
       Pack0EqualPack2 = false;
     }
+    #ifdef RF_CONTROL_SIMULATE_ARDUINO
+    printf(" - verify 0-2 = %s", Pack0EqualPack2 ? "true" : "false");
+    #endif
     if (state == STATUS_RECORDING_3 && Pack0EqualPack2 == true)
     {
+      #ifdef RF_CONTROL_SIMULATE_ARDUINO
+      printf("\nPackage 0 and 2 are equal. data1_ready = true.");
+      #endif
       data1_ready = true;
     }
   }
-  pos = pos + data_start[1];
   if (Pack1EqualPack2 && pos >= 0)
   {
+    pos = pos + data_start[1];
     int mainVal = timings[pos];
     if (refVal_min > mainVal || mainVal > refVal_max)
     {
-      //werte passen nicht
       Pack1EqualPack2 = false;
     }
+    #ifdef RF_CONTROL_SIMULATE_ARDUINO
+    printf(" - verify 1-2 = %s", Pack1EqualPack2 ? "true" : "false");
+    #endif
     if (state == STATUS_RECORDING_3 && Pack1EqualPack2 == true)
     {
+      #ifdef RF_CONTROL_SIMULATE_ARDUINO
+      printf("\nPackage 1 and 2 are equal. data2_ready = true.");
+      #endif
       data2_ready = true;
     }
   }
 }
 
 void verification3() {
-  int refVal = timings[data_end[3] - 1]; //Wert vom 4ten Pack
+  int refVal = timings[data_end[3] - 1]; //Values from the 4th package
   int delta = refVal / 8 + refVal / 4; //+-37,5%
   int refVal_min = refVal - delta;
   int refVal_max = refVal + delta;
@@ -238,41 +342,47 @@ void verification3() {
     int mainVal = timings[pos];
     if (refVal_min > mainVal || mainVal > refVal_max)
     {
-       //werte passen nicht
        Pack0EqualPack3 = false;
     }
+    #ifdef RF_CONTROL_SIMULATE_ARDUINO
+    printf(" - verify 0-3 = %s", Pack0EqualPack3 ? "true" : "false");
+    #endif
     if (state == STATUS_RECORDING_END && Pack0EqualPack3 == true)
     {
+      #ifdef RF_CONTROL_SIMULATE_ARDUINO
+      printf("\nPackage 0 and 3 are equal. data1_ready = true.");
+      #endif
       data1_ready = true;
     }
   }
-  pos = pos + data_start[1];
   if (!Pack1EqualPack2 && Pack1EqualPack3 && pos >= 0)
   {
+    pos = pos + data_start[1];
     int mainVal = timings[pos];
     if (refVal_min > mainVal || mainVal > refVal_max)
     {
-      //werte passen nicht
       Pack1EqualPack3 = false;
     }
+    #ifdef RF_CONTROL_SIMULATE_ARDUINO
+    printf(" - verify 1-3 = %s", Pack1EqualPack3 ? "true" : "false");
+    #endif
     if (state == STATUS_RECORDING_END && Pack1EqualPack3 == true)
     {
+      #ifdef RF_CONTROL_SIMULATE_ARDUINO
+      printf("\nPackage 1 and 3 are equal. data2_ready = true.");
+      #endif
       data2_ready = true;
     }
   }
 }
 
 void handleInterrupt() {
-  static unsigned long lastTime;
-  long currentTime = micros();
+  unsigned long currentTime = micros();
   unsigned int duration = currentTime - lastTime;
-  
-  #ifdef RF_CONTROL_SIMULATE_ARDUINO
-  printf("%s: recording=%i verify=%i duration=%i", sate2string[state], recording_pos, verify_pos, duration);
-  #endif
+  //lastTime = currentTime;
   if (duration >= MIN_PULSE_LENGTH)
   {
-    lastTime = currentTime;
+    lastTime = currentTime;  //i think this filters some noise.
     switch (state)
     {
     case STATUS_WAITING:
@@ -285,14 +395,17 @@ void handleInterrupt() {
     case STATUS_RECORDING_1:
       recording(duration, 1);
       verification1();
+      //verification(1);
       break;
     case STATUS_RECORDING_2:
       recording(duration, 2);
       verification2();
+      //verification(2);
       break;
     case STATUS_RECORDING_3:
       recording(duration, 3);
       verification3();
+      //verification(3);
       break;
     }
   }
