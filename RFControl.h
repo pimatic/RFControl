@@ -3,7 +3,7 @@
 */
 #ifndef ArduinoRf_h
 #define ArduinoRf_h
-#define RF_CONTROL_SIMULATE_ARDUINO
+//#define RF_CONTROL_SIMULATE_ARDUINO
 #ifdef RF_CONTROL_SIMULATE_ARDUINO
 #include "simulate/simulate.h"
 #elif RF_CONTROL_VARDUINO
