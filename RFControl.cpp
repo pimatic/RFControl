@@ -404,7 +404,7 @@ void verification3() {
 }
 
 void handleInterrupt() {
-  digitalWrite(9, HIGH);
+  //digitalWrite(9, HIGH);
   unsigned long currentTime = micros();
   unsigned int duration = currentTime - lastTime;
   //lastTime = currentTime;
@@ -437,7 +437,7 @@ void handleInterrupt() {
       break;
     }
   }
-  digitalWrite(9, LOW);
+  //digitalWrite(9, LOW);
   #ifdef RF_CONTROL_SIMULATE_ARDUINO
   printf("\n");
   #endif
