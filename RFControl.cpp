@@ -590,6 +590,7 @@ bool RFControl::compressTimingsAndSortBuckets(unsigned int buckets[8], unsigned 
 
 void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats) {
   pinMode(transmitterPin, OUTPUT);
+  state = STATUS_RECORDING_END;  //Stops the receiver
   for(unsigned int i = 0; i < repeats; i++) {
     digitalWrite(transmitterPin, LOW);
     int state = LOW;
@@ -600,4 +601,5 @@ void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigne
     }
   }
   digitalWrite(transmitterPin, LOW);
+  state = STATUS_WAITING;  //starts the receiver
 }
