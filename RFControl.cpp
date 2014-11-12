@@ -11,7 +11,6 @@
 #define MIN_FOOTER_LENGTH 3500
 #define MIN_PULSE_LENGTH 100 
 
-
 unsigned int footer_length;
 unsigned int timings[MAX_RECORDINGS];
 unsigned long lastTime = 0;
@@ -27,6 +26,28 @@ bool Pack1EqualPack3 = false;
 bool data1_ready = false;
 bool data2_ready = false;
 void handleInterrupt();
+/*
+void RFControl::sendState() {
+  Serial.print("Equal0-1=");
+  Serial.print(Pack0EqualPack1);
+  Serial.print("  Equal0-2=");
+  Serial.print(Pack0EqualPack2);
+  Serial.print("  Equal0-3=");
+  Serial.print(Pack0EqualPack3);
+  Serial.print("  Equal0-1=");
+  Serial.print(Pack1EqualPack2);
+  Serial.print("  Equal0-1=");
+  Serial.print(Pack1EqualPack3);
+  Serial.write('\n');
+  Serial.print("Data1=");
+  Serial.print(data1_ready);
+  Serial.print("  Data2=");
+  Serial.print(data2_ready);
+  Serial.write('\n');
+  Serial.print("State=");
+  Serial.print(state);
+  Serial.write('\n');
+}*/
 
 void RFControl::startReceiving(int _interruptPin) {
   footer_length = 0;
@@ -262,9 +283,9 @@ void verification1() {
   int pos = data_end[1] - 1 - data_start[1];
   if (Pack0EqualPack1 && pos >= 0)
   {
-    int refVal = timings[pos];
-    int mainVal = timings[data_end[1] - 1];
-    int delta = refVal / 8 + refVal / 4; //+-37,5%
+    unsigned int refVal = timings[pos];
+    unsigned int mainVal = timings[data_end[1] - 1];
+    unsigned int delta = refVal / 8 + refVal / 4; //+-37,5%
     if (refVal - delta > mainVal || mainVal > refVal + delta)
     {
       Pack0EqualPack1 = false;
@@ -285,15 +306,15 @@ void verification1() {
 }
 
 void verification2() {
-  int refVal = timings[data_end[2] - 1];
-  int delta = refVal / 8 + refVal / 4; //+-37,5%
-  int refVal_min = refVal - delta;
-  int refVal_max = refVal + delta;
+  unsigned int refVal = timings[data_end[2] - 1];
+  unsigned int delta = refVal / 8 + refVal / 4; //+-37,5%
+  unsigned int refVal_min = refVal - delta;
+  unsigned int refVal_max = refVal + delta;
   int pos = data_end[2] - 1 - data_start[2];
 
   if (Pack0EqualPack2 && pos >= 0)
   {
-    int mainVal = timings[pos];
+    unsigned int mainVal = timings[pos];
     if (refVal_min > mainVal || mainVal > refVal_max)
     {
       Pack0EqualPack2 = false;
@@ -312,7 +333,7 @@ void verification2() {
   if (Pack1EqualPack2 && pos >= 0)
   {
     pos = pos + data_start[1];
-    int mainVal = timings[pos];
+    unsigned int mainVal = timings[pos];
     if (refVal_min > mainVal || mainVal > refVal_max)
     {
       Pack1EqualPack2 = false;
@@ -328,18 +349,21 @@ void verification2() {
       data2_ready = true;
     }
   }
+  if (state == STATUS_RECORDING_3 && data1_ready == false && data2_ready == false) {
+    state = STATUS_WAITING;
+  }
 }
 
 void verification3() {
-  int refVal = timings[data_end[3] - 1]; //Values from the 4th package
-  int delta = refVal / 8 + refVal / 4; //+-37,5%
-  int refVal_min = refVal - delta;
-  int refVal_max = refVal + delta;
+  unsigned int refVal = timings[data_end[3] - 1]; //Values from the 4th package
+  unsigned int delta = refVal / 8 + refVal / 4; //+-37,5%
+  unsigned int refVal_min = refVal - delta;
+  unsigned int refVal_max = refVal + delta;
   int pos = data_end[3] - 1 - data_start[3];
 
   if (!Pack0EqualPack2 && Pack0EqualPack3 && pos >= 0)
   {
-    int mainVal = timings[pos];
+    unsigned int mainVal = timings[pos];
     if (refVal_min > mainVal || mainVal > refVal_max)
     {
        Pack0EqualPack3 = false;
@@ -358,7 +382,7 @@ void verification3() {
   if (!Pack1EqualPack2 && Pack1EqualPack3 && pos >= 0)
   {
     pos = pos + data_start[1];
-    int mainVal = timings[pos];
+    unsigned int mainVal = timings[pos];
     if (refVal_min > mainVal || mainVal > refVal_max)
     {
       Pack1EqualPack3 = false;
@@ -374,9 +398,13 @@ void verification3() {
       data2_ready = true;
     }
   }
+  if (state == STATUS_RECORDING_END && data1_ready == false && data2_ready == false) {
+    state = STATUS_WAITING;
+  }
 }
 
 void handleInterrupt() {
+  digitalWrite(9, HIGH);
   unsigned long currentTime = micros();
   unsigned int duration = currentTime - lastTime;
   //lastTime = currentTime;
@@ -409,7 +437,7 @@ void handleInterrupt() {
       break;
     }
   }
-    
+  digitalWrite(9, LOW);
   #ifdef RF_CONTROL_SIMULATE_ARDUINO
   printf("\n");
   #endif
