@@ -1,6 +1,15 @@
 #include "RFControl.h"
 
-#define MAX_RECORDINGS 512
+#if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)) && !defined(MAX_RECORDINGS)
+  #define MAX_RECORDINGS 400   //In combination with Homeduino maximum 490*2Byte are possible. Higher values block the arduino
+#endif
+#if (defined(__AVR_ATmega32U4__) || defined(TEENSY20) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega1281__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)) && !defined(MAX_RECORDINGS)
+  #define MAX_RECORDINGS 512   //on the bigger arduino we have enough SRAM
+#endif
+#if !defined(MAX_RECORDINGS)
+  #define MAX_RECORDINGS 255   // fallback for undefined Processor.
+#endif
+
 #define STATUS_WAITING 0
 #define STATUS_RECORDING_0 1
 #define STATUS_RECORDING_1 2
