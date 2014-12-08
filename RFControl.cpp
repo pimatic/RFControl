@@ -91,11 +91,11 @@ bool RFControl::hasData() {
 }
 
 void RFControl::getRaw(unsigned int **buffer, unsigned int* timings_size) {
-	if (data1_ready){
-		*buffer = &timings[0];
-		*timings_size = data_end[0] + 1;
-		data1_ready = false;
-	}
+  if (data1_ready){
+    *buffer = &timings[0];
+    *timings_size = data_end[0] + 1;
+    data1_ready = false;
+  }
   else if (data2_ready)
   {
     *buffer = &timings[data_start[1]];
