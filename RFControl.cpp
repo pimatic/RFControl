@@ -34,6 +34,7 @@ bool Pack1EqualPack2 = false;
 bool Pack1EqualPack3 = false;
 bool data1_ready = false;
 bool data2_ready = false;
+bool skip = false;
 void handleInterrupt();
 /*
 void RFControl::sendState() {
@@ -90,11 +91,11 @@ bool RFControl::hasData() {
 }
 
 void RFControl::getRaw(unsigned int **buffer, unsigned int* timings_size) {
-  if (data1_ready){
-    *buffer = &timings[0];
-    *timings_size = data_end[0] + 1;
-    data1_ready = false;
-  }
+	if (data1_ready){
+		*buffer = &timings[0];
+		*timings_size = data_end[0] + 1;
+		data1_ready = false;
+	}
   else if (data2_ready)
   {
     *buffer = &timings[data_start[1]];
@@ -417,9 +418,13 @@ void handleInterrupt() {
   unsigned long currentTime = micros();
   unsigned int duration = currentTime - lastTime;
   //lastTime = currentTime;
+  if (skip) {
+    skip = false;
+    return;
+  }
   if (duration >= MIN_PULSE_LENGTH)
   {
-    lastTime = currentTime;  //i think this filters some noise.
+    lastTime = currentTime; 
     switch (state)
     {
     case STATUS_WAITING:
@@ -446,6 +451,8 @@ void handleInterrupt() {
       break;
     }
   }
+  else
+    skip = true;
   //digitalWrite(9, LOW);
   #ifdef RF_CONTROL_SIMULATE_ARDUINO
   printf("\n");
