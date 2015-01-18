@@ -39,6 +39,7 @@ void RFControl::stopReceiving()
     detachInterrupt(interruptPin);   
   }
   interruptPin = -1;
+  state = STATUS_WAITING;
 }
 
 bool RFControl::hasData() 
@@ -223,6 +224,19 @@ bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, 
 }
 
 void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats) {
+  // listen before talk
+
+  int _interruptPin = interruptPin;
+  if(state != STATUS_WAITING) {
+    //wait till no rf message is in the air
+    delayMicroseconds(100);
+  }
+
+  // stop receiving while sending
+  if(_interruptPin != -1) {
+    stopReceiving();
+  }
+
   pinMode(transmitterPin, OUTPUT);
   for(unsigned int i = 0; i < repeats; i++) {
     digitalWrite(transmitterPin, LOW);
@@ -234,4 +248,9 @@ void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigne
     }
   }
   digitalWrite(transmitterPin, LOW);
+
+  // enable reciving again
+  if(_interruptPin != -1) {
+    startReceiving(_interruptPin);
+  }
 }
