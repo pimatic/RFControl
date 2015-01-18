@@ -223,6 +223,105 @@ bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, 
   return true;
 }
 
+bool RFControl::compressTimingsAndSortBuckets(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size) {
+  //clear buckets
+  for(int j = 0; j < 8; j++ ) {
+    buckets[j] = 0;
+  }
+  //define arrays too calc the average value from the buckets
+  unsigned long sums[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  unsigned int counts[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  //sort timings into buckets, handle max 8 different pulse length
+  for(unsigned int i = 0; i < timings_size; i++) 
+  {
+    int j = 0;
+    //timings need only there to load
+    unsigned int val = timings[i];
+    for(; j < 8; j++) {
+      unsigned int refVal = buckets[j];
+      //if bucket is empty
+      if(refVal == 0) {
+        //sort into bucket
+        buckets[j] = val;
+        sums[j] += val;
+        counts[j]++;
+        break;
+      } else {
+        //check if bucket fits:
+        //its allowed round about 37,5% diff
+        unsigned int delta = refVal/4 + refVal/8;
+        if(refVal - delta < val && val < refVal + delta) {
+          sums[j] += val;
+          counts[j]++;
+          break;
+        }
+      }
+      //try next..
+    }
+    if(j == 8) {
+      //we have not found a bucket for this timing, exit...
+      return false;
+    }
+  }
+  //calc the average value from the buckets
+  for(int j = 0; j < 8; j++) {
+    if(counts[j] != 0) {
+      buckets[j] = sums[j] / counts[j];
+    }
+  }
+  //buckets are defined
+  //lets scramble a little bit
+  for(int i = 0; i < 8; i++) {
+    for(int j = 0; j < 7; j++) {
+      if(buckets[j] > buckets[j+1]){
+        unsigned int temp = buckets[j];
+        buckets[j] = buckets[j+1];
+        buckets[j+1] = temp;
+      }
+    }
+  }
+  // now the buckets are ordered by size from low to high.
+  // but the zero ist first. lets move this back
+  // find first value
+  int first = 0;
+  for(int i = 0; i < 8; i++){
+    if(buckets[i] != 0){
+    first = i;
+    break;
+    }
+  }
+  //copy buckets to the start of the array
+  int end = 8 - first;
+  for(int i = 0; i < end; i++){
+    buckets[i] = buckets[first];
+    buckets[first] = 0;
+    first++;
+  }
+  
+  //and now we can assign the timings with the position_value from the buckets
+  //pre calc ref values. save time
+  unsigned int ref_Val_h[8];
+  unsigned int ref_Val_l[8];
+  for(int i = 0; i<8;i++) {
+    unsigned int refVal = buckets[i];
+    //check if bucket fits:
+    unsigned int delta = refVal/4 + refVal/8;
+    ref_Val_h[i] = refVal + delta;
+    ref_Val_l[i] = refVal - delta;
+  }
+  for(unsigned int i = 0; i < timings_size; i++) 
+  {
+    unsigned int val = timings[i];
+    for(int j = 0; j < 8; j++) {
+      if(ref_Val_l[j] < val && val < ref_Val_h[j]) {
+        timings[i] = j;
+        break;
+      }
+    }
+  }
+  return true;
+}
+
 void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats) {
   // listen before talk
 
@@ -254,3 +353,4 @@ void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigne
     startReceiving(_interruptPin);
   }
 }
+
