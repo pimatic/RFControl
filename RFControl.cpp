@@ -493,23 +493,21 @@ void listenBeforeTalk()
   // listen before talk
   unsigned long waited = 0;
   if(interruptPin != -1) {
-    while(state != STATUS_WAITING && state != STATUS_RECORDING_END && state != STATUS_RECORDING_0) {
+    while(state > STATUS_RECORDING_0 && state != STATUS_RECORDING_END) {
       //wait till no rf message is in the air
-      waited += 10;
-      delayMicroseconds(10000);
+      waited += 5;
+      delayMicroseconds(3); // 5 - some micros for other stuff
       // don't wait longer than 5sec
-      if(waited > 5000) {
+      if(waited > 5000000) {
         break;
       }
       // some delay between the message in air and the new message send
-      if(state == STATUS_WAITING || state == STATUS_RECORDING_END) {
-        waited += 100;
-        // INT_MAX < 100000 => do two calls
-        delayMicroseconds(50000);
-        delayMicroseconds(50000);
+      // there could be additional repeats following so wait some more time
+      if(state <= STATUS_RECORDING_0 || state == STATUS_RECORDING_END) {
+        waited += 1000000;
+        delay(1000);
       }
     }
-
     // stop receiving while sending, this method preserves the recording state
     detachInterrupt(interruptPin);   
   }
@@ -517,6 +515,8 @@ void listenBeforeTalk()
   if(data1_ready || data2_ready) {
     state = STATUS_RECORDING_END;
   }
+  // Serial.print(waited);
+  // Serial.print(" ");
 }
 
 void afterTalk()
