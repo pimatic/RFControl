@@ -223,7 +223,7 @@ void recording(unsigned int duration, int package) {
 void verify(bool *verifiystate, bool *datastate, unsigned int refVal_max, unsigned int refVal_min, int pos, int package){
   if (*verifiystate && pos >= 0)
   {
-    int mainVal = timings[pos];
+    unsigned int mainVal = timings[pos];
     if (refVal_min > mainVal || mainVal > refVal_max)
     {
       //werte passen nicht
@@ -503,8 +503,10 @@ void listenBeforeTark()
       }
       // leave some time between the message in air and the newly send
       if(state == STATUS_WAITING || state == STATUS_RECORDING_END) {
-        waited += 1000;
-        delayMicroseconds(1000*1000);
+        waited += 100;
+        // INT_MAX < 100000 => do two calls
+        delayMicroseconds(50000);
+        delayMicroseconds(50000);
       }
     }
 
