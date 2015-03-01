@@ -62,6 +62,7 @@ void RFControl::stopReceiving() {
     detachInterrupt(interruptPin);   
   }
   interruptPin = -1;
+  state = STATUS_WAITING;
 }
 
 bool RFControl::hasData() {
@@ -163,9 +164,9 @@ void recording(unsigned int duration, int package) {
     //less than 32 timings -> restart the package.
     if (data_end[package] - data_start[package] >= 32)
     {
-      if (state == STATUS_RECORDING_3)
+      if (state == STATUS_RECORDING_3) {
         state = STATUS_RECORDING_END;
-      else
+      }else
       {
         state = STATUS_RECORDING_0 + package + 1;
       }
@@ -175,7 +176,7 @@ void recording(unsigned int duration, int package) {
       #ifdef RF_CONTROL_SIMULATE_ARDUINO
         printf(" => restart package");
       #endif
-	    data_end[package] = data_start[package];
+      data_end[package] = data_start[package];
       switch (package)
       {
         case 0:
@@ -487,9 +488,67 @@ bool RFControl::compressTimingsAndSortBuckets(unsigned int buckets[8], unsigned 
   return true;
 }
 
-void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats) {
+void listenBeforeTark()
+{
+  // listen before talk
+  unsigned long waited = 0;
+  if(interruptPin != -1) {
+    while(state != STATUS_WAITING && state != STATUS_RECORDING_END) {
+      //wait till no rf message is in the air
+      waited += 10;
+      delayMicroseconds(10000);
+      // don't wait loner than 5sec
+      if(waited > 5000) {
+        break;
+      }
+      // leave some time between the message in air and the newly send
+      if(state == STATUS_WAITING || state == STATUS_RECORDING_END) {
+        waited += 1000;
+        delayMicroseconds(1000*1000);
+      }
+    }
+
+    // stop receiving while sending, this method preservs the recording state
+    detachInterrupt(interruptPin);   
+  }
+  // this prevents loosing the data in the receiving buffer, after sending
+  if(data1_ready || data2_ready) {
+    state = STATUS_RECORDING_END;
+  }
+}
+
+void afterTalk()
+{
+  // enable reciving again
+  if(interruptPin != -1) {
+    attachInterrupt(interruptPin, handleInterrupt, CHANGE);
+  }
+}
+
+
+void RFControl::sendByCompressedTimings(int transmitterPin,unsigned int* buckets, char* compressTimings, unsigned int repeats) {
+  listenBeforeTark();
+  unsigned int timings_size = strlen(compressTimings);
   pinMode(transmitterPin, OUTPUT);
-  state = STATUS_RECORDING_END;  //Stops the receiver
+  for(unsigned int i = 0; i < repeats; i++) {
+    digitalWrite(transmitterPin, LOW);
+    int state = LOW;
+    for(unsigned int j = 0; j < timings_size; j++) {
+      state = !state;
+      digitalWrite(transmitterPin, state);
+      unsigned int index = compressTimings[j] - '0';
+      delayMicroseconds(buckets[index]);
+    }
+  }
+  digitalWrite(transmitterPin, LOW);
+  afterTalk();
+}
+
+
+void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats) {
+  listenBeforeTark();
+
+  pinMode(transmitterPin, OUTPUT);
   for(unsigned int i = 0; i < repeats; i++) {
     digitalWrite(transmitterPin, LOW);
     int state = LOW;
@@ -500,5 +559,6 @@ void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigne
     }
   }
   digitalWrite(transmitterPin, LOW);
-  state = STATUS_WAITING;  //starts the receiver
+  afterTalk();
 }
+
