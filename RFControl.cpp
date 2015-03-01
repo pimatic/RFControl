@@ -488,7 +488,7 @@ bool RFControl::compressTimingsAndSortBuckets(unsigned int buckets[8], unsigned 
   return true;
 }
 
-void listenBeforeTark()
+void listenBeforeTalk()
 {
   // listen before talk
   unsigned long waited = 0;
@@ -497,11 +497,11 @@ void listenBeforeTark()
       //wait till no rf message is in the air
       waited += 10;
       delayMicroseconds(10000);
-      // don't wait loner than 5sec
+      // don't wait longer than 5sec
       if(waited > 5000) {
         break;
       }
-      // leave some time between the message in air and the newly send
+      // some delay between the message in air and the new message send
       if(state == STATUS_WAITING || state == STATUS_RECORDING_END) {
         waited += 100;
         // INT_MAX < 100000 => do two calls
@@ -510,7 +510,7 @@ void listenBeforeTark()
       }
     }
 
-    // stop receiving while sending, this method preservs the recording state
+    // stop receiving while sending, this method preserves the recording state
     detachInterrupt(interruptPin);   
   }
   // this prevents loosing the data in the receiving buffer, after sending
@@ -529,7 +529,7 @@ void afterTalk()
 
 
 void RFControl::sendByCompressedTimings(int transmitterPin,unsigned int* buckets, char* compressTimings, unsigned int repeats) {
-  listenBeforeTark();
+  listenBeforeTalk();
   unsigned int timings_size = strlen(compressTimings);
   pinMode(transmitterPin, OUTPUT);
   for(unsigned int i = 0; i < repeats; i++) {
@@ -548,7 +548,7 @@ void RFControl::sendByCompressedTimings(int transmitterPin,unsigned int* buckets
 
 
 void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats) {
-  listenBeforeTark();
+  listenBeforeTalk();
 
   pinMode(transmitterPin, OUTPUT);
   for(unsigned int i = 0; i < repeats; i++) {
