@@ -23,6 +23,8 @@ class RFControl
     static bool compressTimingsAndSortBuckets(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size);
     static void sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats = 3);
     static void sendByCompressedTimings(int transmitterPin, unsigned int* buckets, char* compressTimings, unsigned int repeats = 3); 
+    static unsigned int getLastDuration();
+	static bool existNewDuration();
   private:
     RFControl();
 };

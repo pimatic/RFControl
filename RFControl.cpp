@@ -24,6 +24,7 @@ unsigned int footer_length;
 unsigned int timings[MAX_RECORDINGS];
 unsigned long lastTime = 0;
 unsigned char state;
+unsigned int duration = 0;
 int interruptPin = -1;
 int data_start[5];
 int data_end[5];
@@ -35,6 +36,7 @@ bool Pack1EqualPack3 = false;
 bool data1_ready = false;
 bool data2_ready = false;
 bool skip = false;
+bool new_duration = false;
 void handleInterrupt();
 
 void RFControl::startReceiving(int _interruptPin) {
@@ -90,6 +92,15 @@ void RFControl::continueReceiving() {
     data1_ready = false;
     data2_ready = false;
   }
+}
+
+unsigned int RFControl::getLastDuration(){
+	new_duration = false;
+	return duration;
+}
+
+bool RFControl::existNewDuration(){
+	return new_duration;
 }
 
 bool probablyFooter(unsigned int duration) {
@@ -303,7 +314,7 @@ void verification1() {
 void handleInterrupt() {
   //digitalWrite(9, HIGH);
   unsigned long currentTime = micros();
-  unsigned int duration = currentTime - lastTime;
+  duration = currentTime - lastTime;
   //lastTime = currentTime;
   if (skip) {
     skip = false;
@@ -311,6 +322,7 @@ void handleInterrupt() {
   }
   if (duration >= MIN_PULSE_LENGTH)
   {
+	new_duration = true;
     lastTime = currentTime; 
     switch (state)
     {
