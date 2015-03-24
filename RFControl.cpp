@@ -539,11 +539,14 @@ void afterTalk()
   }
 }
 
-void _wait(unsigned int time_to_wait){
-	time_to_wait = time_to_wait / 10;
-	for(unsigned int i = 0;i<=time_to_wait;i++){
-		delayMicroseconds(10);
-	}
+void delayMicrosecondsLong(unsigned int time_to_wait){
+  //  delayMicroseconds() only works up to 16383 micros
+  // https://github.com/pimatic/rfcontroljs/issues/29#issuecomment-85460916
+  while(time_to_wait > 16000) {
+    delayMicroseconds(16000);
+    time_to_wait -= 16000;
+  }
+  delayMicroseconds(time_to_wait);
 }
 
 
@@ -558,7 +561,7 @@ void RFControl::sendByCompressedTimings(int transmitterPin,unsigned int* buckets
       state = !state;
       digitalWrite(transmitterPin, state);
       unsigned int index = compressTimings[j] - '0';
-      _wait(buckets[index]);
+      delayMicrosecondsLong(buckets[index]);
     }
   }
   digitalWrite(transmitterPin, LOW);
@@ -576,7 +579,7 @@ void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigne
     for(unsigned int j = 0; j < timings_size; j++) {
       state = !state;
       digitalWrite(transmitterPin, state);
-      _wait(timings[j]);
+      delayMicrosecondsLong(timings[j]);
     }
   }
   digitalWrite(transmitterPin, LOW);
