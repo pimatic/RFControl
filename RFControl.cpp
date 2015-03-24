@@ -539,6 +539,13 @@ void afterTalk()
   }
 }
 
+void _wait(unsigned int time_to_wait){
+	time_to_wait = time_to_wait / 10;
+	for(unsigned int i = 0;i<=time_to_wait;i++){
+		delayMicroseconds(10);
+	}
+}
+
 
 void RFControl::sendByCompressedTimings(int transmitterPin,unsigned int* buckets, char* compressTimings, unsigned int repeats) {
   listenBeforeTalk();
@@ -551,7 +558,7 @@ void RFControl::sendByCompressedTimings(int transmitterPin,unsigned int* buckets
       state = !state;
       digitalWrite(transmitterPin, state);
       unsigned int index = compressTimings[j] - '0';
-      delayMicroseconds(buckets[index]);
+      _wait(buckets[index]);
     }
   }
   digitalWrite(transmitterPin, LOW);
@@ -569,7 +576,7 @@ void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigne
     for(unsigned int j = 0; j < timings_size; j++) {
       state = !state;
       digitalWrite(transmitterPin, state);
-      delayMicroseconds(timings[j]);
+      _wait(timings[j]);
     }
   }
   digitalWrite(transmitterPin, LOW);
