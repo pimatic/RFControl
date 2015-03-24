@@ -284,33 +284,6 @@ void verification(int package) {
   }
 }
 
-void verification1() {
-  int pos = data_end[1] - 1 - data_start[1];
-  if (Pack0EqualPack1 && pos >= 0)
-  {
-    unsigned int refVal = timings[pos];
-    unsigned int mainVal = timings[data_end[1] - 1];
-    unsigned int delta = refVal / 8 + refVal / 4; //+-37,5%
-    if (refVal - delta > mainVal || mainVal > refVal + delta)
-    {
-      Pack0EqualPack1 = false;
-    }
-
-    #ifdef RF_CONTROL_SIMULATE_ARDUINO
-    printf(" - verify 0-1 = %s", Pack0EqualPack1 ? "true" : "false");
-    #endif
-    if (state == STATUS_RECORDING_2 && Pack0EqualPack1 == true)
-    {
-      #ifdef RF_CONTROL_SIMULATE_ARDUINO
-      printf("\nPackage 0 and 1 are equal. data1_ready = true.");
-      #endif
-      data1_ready = true;
-      state = STATUS_RECORDING_END;
-    }
-  }
-}
-
-
 void handleInterrupt() {
   //digitalWrite(9, HIGH);
   unsigned long currentTime = micros();
