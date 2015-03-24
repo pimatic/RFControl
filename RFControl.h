@@ -14,6 +14,7 @@
 class RFControl
 {
   public:
+    static unsigned int getPulseLengthDivider();
     static void startReceiving(int interruptPin);
     static void stopReceiving();
     static bool hasData();

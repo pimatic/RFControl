@@ -17,8 +17,10 @@
 #define STATUS_RECORDING_3 4
 #define STATUS_RECORDING_END 5
 
-#define MIN_FOOTER_LENGTH 3500
-#define MIN_PULSE_LENGTH 100 
+#define PULSE_LENGTH_DIVIDER 4
+
+#define MIN_FOOTER_LENGTH (3500 / PULSE_LENGTH_DIVIDER)
+#define MIN_PULSE_LENGTH (100 / PULSE_LENGTH_DIVIDER)
 
 unsigned int footer_length;
 unsigned int timings[MAX_RECORDINGS];
@@ -38,6 +40,10 @@ bool data2_ready = false;
 bool skip = false;
 bool new_duration = false;
 void handleInterrupt();
+
+unsigned int RFControl::getPulseLengthDivider() {
+  return PULSE_LENGTH_DIVIDER;
+}
 
 void RFControl::startReceiving(int _interruptPin) {
   footer_length = 0;
@@ -287,7 +293,7 @@ void verification(int package) {
 void handleInterrupt() {
   //digitalWrite(9, HIGH);
   unsigned long currentTime = micros();
-  duration = currentTime - lastTime;
+  duration = (currentTime - lastTime) / PULSE_LENGTH_DIVIDER;
   //lastTime = currentTime;
   if (skip) {
     skip = false;
