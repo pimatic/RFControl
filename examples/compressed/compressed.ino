@@ -14,7 +14,8 @@ void loop() {
     RFControl::compressTimings(buckets, timings, timings_size);
     Serial.print("b: ");
     for(int i=0; i < 8; i++) {
-      Serial.print(buckets[i]);
+      unsigned long bucket = buckets[i] * pulse_length_divider;
+      Serial.print(bucket);
       Serial.write(' ');
     }
     Serial.print("\nt: ");

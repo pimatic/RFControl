@@ -518,7 +518,7 @@ void afterTalk()
   }
 }
 
-void delayMicrosecondsLong(unsigned int time_to_wait){
+void delayMicrosecondsLong(unsigned long time_to_wait){
   //  delayMicroseconds() only works up to 16383 micros
   // https://github.com/pimatic/rfcontroljs/issues/29#issuecomment-85460916
   while(time_to_wait > 16000) {
@@ -529,7 +529,7 @@ void delayMicrosecondsLong(unsigned int time_to_wait){
 }
 
 
-void RFControl::sendByCompressedTimings(int transmitterPin,unsigned int* buckets, char* compressTimings, unsigned int repeats) {
+void RFControl::sendByCompressedTimings(int transmitterPin,unsigned long* buckets, char* compressTimings, unsigned int repeats) {
   listenBeforeTalk();
   unsigned int timings_size = strlen(compressTimings);
   pinMode(transmitterPin, OUTPUT);
