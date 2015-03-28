@@ -3,13 +3,6 @@
 */
 #ifndef ArduinoRf_h
 #define ArduinoRf_h
-#ifdef RF_CONTROL_SIMULATE_ARDUINO
-#include "simulate/simulate.h"
-#elif RF_CONTROL_VARDUINO
-#include "simulate/simulate.h"
-#else
-#include "Arduino.h"
-#endif
 
 class RFControl
 {
@@ -25,7 +18,7 @@ class RFControl
     static void sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats = 3);
     static void sendByCompressedTimings(int transmitterPin, unsigned long* buckets, char* compressTimings, unsigned int repeats = 3); 
     static unsigned int getLastDuration();
-	static bool existNewDuration();
+    static bool existNewDuration();
   private:
     RFControl();
 };

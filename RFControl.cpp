@@ -1,13 +1,7 @@
 #include "RFControl.h"
 
-#if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)) && !defined(MAX_RECORDINGS)
-  #define MAX_RECORDINGS 400   //In combination with Homeduino maximum 490*2Byte are possible. Higher values block the arduino
-#endif
-#if (defined(__AVR_ATmega32U4__) || defined(TEENSY20) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega1281__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)) && !defined(MAX_RECORDINGS)
-  #define MAX_RECORDINGS 512   //on the bigger arduino we have enough SRAM
-#endif
-#if !defined(MAX_RECORDINGS)
-  #define MAX_RECORDINGS 255   // fallback for undefined Processor.
+#ifndef RF_CONTROL_VARDUINO
+#include "arduino_functions.h"
 #endif
 
 #define STATUS_WAITING 0
@@ -59,15 +53,15 @@ void RFControl::startReceiving(int _interruptPin) {
   data1_ready = false;
   data2_ready = false;
   if(interruptPin != -1) {
-    detachInterrupt(interruptPin);   
+    hw_detachInterrupt(interruptPin);   
   }
   interruptPin = _interruptPin;
-  attachInterrupt(interruptPin, handleInterrupt, CHANGE);
+  hw_attachInterrupt(interruptPin, handleInterrupt);
 }
 
 void RFControl::stopReceiving() {
   if(interruptPin != -1) {
-    detachInterrupt(interruptPin);   
+    hw_detachInterrupt(interruptPin);   
   }
   interruptPin = -1;
   state = STATUS_WAITING;
@@ -291,8 +285,8 @@ void verification(int package) {
 }
 
 void handleInterrupt() {
-  //digitalWrite(9, HIGH);
-  unsigned long currentTime = micros();
+  //hw_digitalWrite(9, HIGH);
+  unsigned long currentTime = hw_micros();
   duration = (currentTime - lastTime) / PULSE_LENGTH_DIVIDER;
   //lastTime = currentTime;
   if (skip) {
@@ -328,7 +322,7 @@ void handleInterrupt() {
   }
   else
     skip = true;
-  //digitalWrite(9, LOW);
+  //hw_digitalWrite(9, LOW);
   #ifdef RF_CONTROL_SIMULATE_ARDUINO
   printf("\n");
   #endif
@@ -487,7 +481,7 @@ void listenBeforeTalk()
     while(state > STATUS_RECORDING_0 && state != STATUS_RECORDING_END) {
       //wait till no rf message is in the air
       waited += 5;
-      delayMicroseconds(3); // 5 - some micros for other stuff
+      hw_delayMicroseconds(3); // 5 - some micros for other stuff
       // don't wait longer than 5sec
       if(waited > 5000000) {
         break;
@@ -496,11 +490,11 @@ void listenBeforeTalk()
       // there could be additional repeats following so wait some more time
       if(state <= STATUS_RECORDING_0 || state == STATUS_RECORDING_END) {
         waited += 1000000;
-        delay(1000);
+        hw_delayMicroseconds(1000000);
       }
     }
     // stop receiving while sending, this method preserves the recording state
-    detachInterrupt(interruptPin);   
+    hw_detachInterrupt(interruptPin);   
   }
   // this prevents loosing the data in the receiving buffer, after sending
   if(data1_ready || data2_ready) {
@@ -514,36 +508,26 @@ void afterTalk()
 {
   // enable reciving again
   if(interruptPin != -1) {
-    attachInterrupt(interruptPin, handleInterrupt, CHANGE);
+    hw_attachInterrupt(interruptPin, handleInterrupt);
   }
-}
-
-void delayMicrosecondsLong(unsigned long time_to_wait){
-  //  delayMicroseconds() only works up to 16383 micros
-  // https://github.com/pimatic/rfcontroljs/issues/29#issuecomment-85460916
-  while(time_to_wait > 16000) {
-    delayMicroseconds(16000);
-    time_to_wait -= 16000;
-  }
-  delayMicroseconds(time_to_wait);
 }
 
 
 void RFControl::sendByCompressedTimings(int transmitterPin,unsigned long* buckets, char* compressTimings, unsigned int repeats) {
   listenBeforeTalk();
   unsigned int timings_size = strlen(compressTimings);
-  pinMode(transmitterPin, OUTPUT);
+  hw_pinMode(transmitterPin, OUTPUT);
   for(unsigned int i = 0; i < repeats; i++) {
-    digitalWrite(transmitterPin, LOW);
+    hw_digitalWrite(transmitterPin, LOW);
     int state = LOW;
     for(unsigned int j = 0; j < timings_size; j++) {
       state = !state;
-      digitalWrite(transmitterPin, state);
+      hw_digitalWrite(transmitterPin, state);
       unsigned int index = compressTimings[j] - '0';
-      delayMicrosecondsLong(buckets[index]);
+      hw_delayMicroseconds(buckets[index]);
     }
   }
-  digitalWrite(transmitterPin, LOW);
+  hw_digitalWrite(transmitterPin, LOW);
   afterTalk();
 }
 
@@ -553,15 +537,15 @@ void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigne
 
   pinMode(transmitterPin, OUTPUT);
   for(unsigned int i = 0; i < repeats; i++) {
-    digitalWrite(transmitterPin, LOW);
+    hw_digitalWrite(transmitterPin, LOW);
     int state = LOW;
     for(unsigned int j = 0; j < timings_size; j++) {
       state = !state;
-      digitalWrite(transmitterPin, state);
-      delayMicrosecondsLong(timings[j]);
+      hw_digitalWrite(transmitterPin, state);
+      hw_delayMicroseconds(timings[j]);
     }
   }
-  digitalWrite(transmitterPin, LOW);
+  hw_digitalWrite(transmitterPin, LOW);
   afterTalk();
 }
 
