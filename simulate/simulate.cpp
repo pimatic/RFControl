@@ -1,8 +1,24 @@
 #include <cstdio>
-#include "../RFControl.h"
-#include "../RFControl.cpp"
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
 
-void (*interruptCallback)(void);
+#define RF_CONTROL_VARDUINO
+#define MAX_RECORDINGS 255
+#include "../RFControl.h"
+
+static char sate2string[6][255] = {
+"STATUS_WAITING",
+"STATUS_RECORDING_0",
+"STATUS_RECORDING_1",
+"STATUS_RECORDING_2",
+"STATUS_RECORDING_3",
+"STATUS_RECORDING_END"
+};
+
+void (*sim_interruptCallback)(void);
 
 unsigned int sim_timings[] = {
 
@@ -205,12 +221,12 @@ int main(int argc, const char* argv[])
 {
 	sim_timings_pos = 0;
 	sim_timings_size = sizeof(sim_timings)/sizeof(unsigned int);
-
+	unsigned int pulse_length_divider = RFControl::getPulseLengthDivider();
 	RFControl::startReceiving(0);
 
 	while(sim_timings_pos < sim_timings_size) {
 
-		interruptCallback();
+		sim_interruptCallback();
 
 		if(RFControl::hasData()) {
 			unsigned int *timings;
@@ -218,7 +234,8 @@ int main(int argc, const char* argv[])
 			RFControl::getRaw(&timings, &timings_size);
 			printf("result: \n");
 			for(size_t i=0; i < timings_size; i++) {
-				printf("%i ", timings[i]);
+				unsigned long timing = timings[i] * pulse_length_divider;
+				printf("%lu ", timing);
 				if((i+1)%16 == 0) {
 					printf("\n");
 				}
@@ -227,11 +244,12 @@ int main(int argc, const char* argv[])
 			unsigned int buckets[8];
 			RFControl::compressTimings(buckets, timings, timings_size);
 			printf("compressed: ");
-			for(int i=0; i < 8; i++) {
-				printf("%i ", buckets[i]);
+			for(size_t i=0; i < 8; i++) {
+				unsigned long bucket = buckets[i] * pulse_length_divider;
+				printf("%lu ", bucket);
 			}
 			printf(" t: ");
-			for(int i=0; i < timings_size; i++) {
+			for(size_t i=0; i < timings_size; i++) {
 			  printf("%i", timings[i]);
 			}
 			printf("\n");
@@ -244,11 +262,11 @@ int main(int argc, const char* argv[])
 }
 
 
-void attachInterrupt(uint8_t, void (*ic)(void), int mode) {
-	interruptCallback = ic;
+void hw_attachInterrupt(uint8_t, void (*ic)(void)) {
+	sim_interruptCallback = ic;
 }
 
-unsigned long micros(void) {
+unsigned long hw_micros(void) {
 	static unsigned long duration = 0;
 	if(sim_timings_pos < sim_timings_size) {
 		duration += sim_timings[sim_timings_pos++];
@@ -260,12 +278,22 @@ unsigned long micros(void) {
 }
 
 
-void pinMode(uint8_t, uint8_t){}
-void digitalWrite(uint8_t, uint8_t){}
-int digitalRead(uint8_t){return 0;}
-int analogRead(uint8_t){return 0;}
-void analogReference(uint8_t mode){}
-void analogWrite(uint8_t, int){}
-void delay(unsigned long){}
-void delayMicroseconds(unsigned int us){}
-void detachInterrupt(uint8_t){}
+void hw_pinMode(uint8_t, uint8_t){}
+void hw_digitalWrite(uint8_t, uint8_t){}
+int hw_digitalRead(uint8_t){return 0;}
+int hw_analogRead(uint8_t){return 0;}
+void hw_analogReference(uint8_t mode){}
+void hw_analogWrite(uint8_t, int){}
+void hw_delayMicroseconds(unsigned int us){}
+void hw_detachInterrupt(uint8_t){}
+
+#define HIGH 0x1
+#define LOW  0x0
+#define INPUT 0x0
+#define OUTPUT 0x1
+
+#define CHANGE 1	
+#define FALLING 2
+#define RISING 3
+
+#include "../RFControl.cpp"

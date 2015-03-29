@@ -535,7 +535,7 @@ void RFControl::sendByCompressedTimings(int transmitterPin,unsigned long* bucket
 void RFControl::sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats) {
   listenBeforeTalk();
 
-  pinMode(transmitterPin, OUTPUT);
+  hw_pinMode(transmitterPin, OUTPUT);
   for(unsigned int i = 0; i < repeats; i++) {
     hw_digitalWrite(transmitterPin, LOW);
     int state = LOW;
