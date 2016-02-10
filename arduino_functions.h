@@ -3,7 +3,7 @@
 #if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__)) && !defined(MAX_RECORDINGS)
   #define MAX_RECORDINGS 400   //In combination with Homeduino maximum 490*2Byte are possible. Higher values block the arduino
 #endif
-#if (defined(__AVR_ATmega32U4__) || defined(TEENSY20) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega1281__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)) && !defined(MAX_RECORDINGS)
+#if (defined(__AVR_ATmega32U4__) || defined(TEENSY20) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega1281__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__) || defined(ESP8266)) && !defined(MAX_RECORDINGS)
   #define MAX_RECORDINGS 512   //on the bigger arduino we have enough SRAM
 #endif
 #if !defined(MAX_RECORDINGS)
