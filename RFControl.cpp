@@ -478,6 +478,8 @@ void listenBeforeTalk()
   // listen before talk
   unsigned long waited = 0;
   if(interruptPin != -1) {
+      waited += 500;
+      hw_delayMicroseconds(500); 
     while(state > STATUS_RECORDING_0 && state != STATUS_RECORDING_END) {
       //wait till no rf message is in the air
       waited += 5;
