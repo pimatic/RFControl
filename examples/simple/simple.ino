@@ -8,6 +8,7 @@ void setup() {
 void loop() {
   if(RFControl::hasData()) {
     unsigned int *timings;
+    unsigned int timings_size;
     unsigned int pulse_length_divider = RFControl::getPulseLengthDivider();
     RFControl::getRaw(&timings, &timings_size);
     for(int i=0; i < timings_size; i++) {
@@ -23,5 +24,3 @@ void loop() {
     RFControl::continueReceiving();
   }
 }
-
-
