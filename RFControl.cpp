@@ -171,9 +171,9 @@ void recording(unsigned int duration, int package) {
     data_start[package + 1] = data_end[package] + 1;
     data_end[package + 1] = data_start[package + 1];
 
-    //Received more than 32 timings and start and end are the same footer then enter next state
-    //less than 32 timings -> restart the package.
-    if (data_end[package] - data_start[package] >= 32)
+    //Received more than 16 timings and start and end are the same footer then enter next state
+    //less than 16 timings -> restart the package.
+    if (data_end[package] - data_start[package] >= 16)
     {
       if (state == STATUS_RECORDING_3) {
         state = STATUS_RECORDING_END;
@@ -478,6 +478,8 @@ void listenBeforeTalk()
   // listen before talk
   unsigned long waited = 0;
   if(interruptPin != -1) {
+      waited += 500;
+      hw_delayMicroseconds(500); 
     while(state > STATUS_RECORDING_0 && state != STATUS_RECORDING_END) {
       //wait till no rf message is in the air
       waited += 5;
