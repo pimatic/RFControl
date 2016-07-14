@@ -27,7 +27,7 @@ static inline void hw_delayMicroseconds(uint32_t time_to_wait) {
   // https://github.com/pimatic/rfcontroljs/issues/29#issuecomment-85460916
   while(time_to_wait > 16000) {
     #if defined(ESP8266)
-      delay(16)
+      delay(16);
     #else
       delayMicroseconds(16000);
     #endif
