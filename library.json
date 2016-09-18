@@ -1,0 +1,15 @@
+{
+    "name": "RFcontrol",
+    "keywords": "rf, 433mhz, arduino",
+    "description": "Arduino library for 433mhz RF sniffing and receiving.",
+    "repository":
+    {
+        "type": "git",
+        "url": "https://github.com/pimatic/RFControl.git"
+    },
+    "export": {
+      "exclude": "simulate"
+    },
+    "frameworks": "arduino",
+    "platforms": "atmelavr"
+}
