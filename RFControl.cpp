@@ -11,10 +11,11 @@
 #define STATUS_RECORDING_3 4
 #define STATUS_RECORDING_END 5
 
-#define PULSE_LENGTH_DIVIDER 4
+#define PULSE_LENGTH_DIVIDER 1
 
-#define MIN_FOOTER_LENGTH (3500 / PULSE_LENGTH_DIVIDER)
+#define MIN_FOOTER_LENGTH (3000 / PULSE_LENGTH_DIVIDER)
 #define MIN_PULSE_LENGTH (100 / PULSE_LENGTH_DIVIDER)
+#define MAX_PULSE_LENGTH (4000000 / PULSE_LENGTH_DIVIDER)
 
 unsigned int footer_length;
 unsigned int timings[MAX_RECORDINGS];
@@ -104,11 +105,11 @@ bool RFControl::existNewDuration(){
 }
 
 bool probablyFooter(unsigned int duration) {
-  return duration >= MIN_FOOTER_LENGTH; 
+  return duration >= MIN_FOOTER_LENGTH && ((int)duration >0); 
 }
 
 bool matchesFooter(unsigned int duration) {
-  unsigned int footer_delta = footer_length/4;
+  unsigned int footer_delta = footer_length/3;
   return (footer_length - footer_delta < duration && duration < footer_length + footer_delta);
 }
 
@@ -117,6 +118,9 @@ void startRecording(unsigned int duration) {
   printf(" => start recoding");
   #endif
   footer_length = duration;
+  #ifdef RF_CONTROL_SIMULATE_ARDUINO
+  printf(" footer =  %u",duration);
+  #endif
   data_end[0] = 0;
   data_end[1] = 0;
   data_end[2] = 0;
@@ -164,7 +168,14 @@ void recording(unsigned int duration, int package) {
   else if (duration < 100000)
     printf(" duration=%i", duration);
 #endif
-  if (matchesFooter(duration)) //test for footer (+-25%).
+  if ((int)duration < 0){
+    
+#ifdef RF_CONTROL_SIMULATE_ARDUINO
+    printf("invalid duration=%i", duration);
+#endif
+	RFControl::startReceiving(interruptPin);
+
+  }else  if (matchesFooter(duration)) //test for footer (+-25%).
   {
     //Package is complete!!!!
     timings[data_end[package]] = duration;
@@ -285,7 +296,7 @@ void verification(int package) {
 }
 
 void handleInterrupt() {
-  //hw_digitalWrite(9, HIGH);
+  hw_digitalWrite(9, HIGH);
   unsigned long currentTime = hw_micros();
   duration = (currentTime - lastTime) / PULSE_LENGTH_DIVIDER;
   //lastTime = currentTime;
@@ -322,7 +333,7 @@ void handleInterrupt() {
   }
   else
     skip = true;
-  //hw_digitalWrite(9, LOW);
+  hw_digitalWrite(9, LOW);
   #ifdef RF_CONTROL_SIMULATE_ARDUINO
   printf("\n");
   #endif
