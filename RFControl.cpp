@@ -11,7 +11,7 @@
 #define STATUS_RECORDING_3 4
 #define STATUS_RECORDING_END 5
 
-#define PULSE_LENGTH_DIVIDER 1
+#define PULSE_LENGTH_DIVIDER 4
 
 #define MIN_FOOTER_LENGTH (3500 / PULSE_LENGTH_DIVIDER)
 #define MIN_PULSE_LENGTH (100 / PULSE_LENGTH_DIVIDER)
@@ -108,7 +108,7 @@ bool probablyFooter(unsigned int duration) {
 }
 
 bool matchesFooter(unsigned int duration) {
-  unsigned int footer_delta = footer_length/3;
+  unsigned int footer_delta = footer_length/4;
   return (footer_length - footer_delta < duration && duration < footer_length + footer_delta);
 }
 
