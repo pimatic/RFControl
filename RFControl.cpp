@@ -13,9 +13,8 @@
 
 #define PULSE_LENGTH_DIVIDER 1
 
-#define MIN_FOOTER_LENGTH (3000 / PULSE_LENGTH_DIVIDER)
+#define MIN_FOOTER_LENGTH (3500 / PULSE_LENGTH_DIVIDER)
 #define MIN_PULSE_LENGTH (100 / PULSE_LENGTH_DIVIDER)
-#define MAX_PULSE_LENGTH (4000000 / PULSE_LENGTH_DIVIDER)
 
 unsigned int footer_length;
 unsigned int timings[MAX_RECORDINGS];
@@ -296,7 +295,7 @@ void verification(int package) {
 }
 
 void handleInterrupt() {
-  hw_digitalWrite(9, HIGH);
+  //hw_digitalWrite(9, HIGH);
   unsigned long currentTime = hw_micros();
   duration = (currentTime - lastTime) / PULSE_LENGTH_DIVIDER;
   //lastTime = currentTime;
@@ -333,7 +332,7 @@ void handleInterrupt() {
   }
   else
     skip = true;
-  hw_digitalWrite(9, LOW);
+  //hw_digitalWrite(9, LOW);
   #ifdef RF_CONTROL_SIMULATE_ARDUINO
   printf("\n");
   #endif
