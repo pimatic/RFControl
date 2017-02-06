@@ -15,11 +15,11 @@
 
 static inline void hw_attachInterrupt(int pin, void (*callback)(void)) {
   pinMode(pin, INPUT);
-  attachInterrupt(pin, callback, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(pin), callback, CHANGE);
 }
 
 static inline void hw_detachInterrupt(int pin) {
-  detachInterrupt(pin);
+  detachInterrupt(digitalPinToInterrupt(pin));
 }
 
 static inline void hw_delayMicroseconds(uint32_t time_to_wait) {
