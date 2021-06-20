@@ -288,7 +288,11 @@ void verification(int package) {
   }
 }
 
+#if defined(ESP8266)
+void ICACHE_RAM_ATTR handleInterrupt() {
+#else
 void handleInterrupt() {
+#endif
   //hw_digitalWrite(9, HIGH);
   unsigned long currentTime = hw_micros();
   duration = (currentTime - lastTime) / PULSE_LENGTH_DIVIDER;
